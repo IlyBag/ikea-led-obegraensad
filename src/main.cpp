@@ -23,6 +23,18 @@
 #include "plugins/SnakePlugin.h"
 #include "plugins/StarsPlugin.h"
 #include "plugins/PongClockPlugin.h"
+#include "plugins/MatrixRainPlugin.h"
+#include "plugins/PacmanPlugin.h"
+#include "plugins/SpectrumPlugin.h"
+#include "plugins/HeartPulsePlugin.h"
+#include "plugins/TransitPlugin.h"
+#include "plugins/ClusterPlugin.h"
+#include "plugins/RiverPlugin.h"
+#include "plugins/AirQualityPlugin.h"
+#include "plugins/RainRadarPlugin.h"
+#include "plugins/EnergyPlugin.h"
+#include "plugins/SpacePlugin.h"
+#include "plugins/SensorsPlugin.h"
 
 #ifdef ENABLE_SERVER
 #include "plugins/AnimationPlugin.h"
@@ -192,6 +204,21 @@ void setup()
   pluginManager.addPlugin(new RainPlugin());
   pluginManager.addPlugin(new FireworkPlugin());
   pluginManager.addPlugin(new PongClockPlugin());
+  pluginManager.addPlugin(new MatrixRainPlugin());
+  pluginManager.addPlugin(new PacmanPlugin());
+  pluginManager.addPlugin(new SpectrumPlugin());
+  pluginManager.addPlugin(new HeartPulsePlugin());
+  pluginManager.addPlugin(new TransitPlugin());
+  pluginManager.addPlugin(new ClusterPlugin());
+  pluginManager.addPlugin(new RiverPlugin());
+  pluginManager.addPlugin(new AirQualityPlugin());
+  pluginManager.addPlugin(new RainRadarPlugin());
+  pluginManager.addPlugin(new EnergyPlugin());
+  pluginManager.addPlugin(new SpacePlugin());
+  pluginManager.addPlugin(new SensorsOverviewPlugin());
+  pluginManager.addPlugin(new ChipTempPlugin());
+  pluginManager.addPlugin(new HallSensorPlugin());
+  pluginManager.addPlugin(new WifiSignalPlugin());
 
 #ifdef ENABLE_SERVER
   pluginManager.addPlugin(new BigClockPlugin());
@@ -206,10 +233,25 @@ void setup()
 
 void loop()
 {
-
   Messages.scrollMessageEveryMinute();
 
-  pluginManager.runActivePlugin();
+  if (Messages.hasContinuous())
+  {
+    Messages.runContinuousStep();
+  }
+  else
+  {
+    pluginManager.runActivePlugin();
+  }
+
+#ifdef ENABLE_SERVER
+  static unsigned long lastTelemetryTime = 0;
+  if (millis() - lastTelemetryTime > 2000)
+  {
+    lastTelemetryTime = millis();
+    sendTelemetry();
+  }
+#endif
 
   if (WiFi.status() != WL_CONNECTED && millis() - lastConnectionAttempt > connectionInterval)
   {

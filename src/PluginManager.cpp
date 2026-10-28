@@ -1,4 +1,5 @@
 #include "PluginManager.h"
+#include "messages.h"
 
 Plugin::Plugin() : id(-1) {}
 
@@ -68,6 +69,7 @@ int PluginManager::addPlugin(Plugin *plugin)
 
 void PluginManager::setActivePlugin(const char *pluginName)
 {
+    Messages.stopContinuous();
     if (activePlugin)
     {
         activePlugin->teardown();
