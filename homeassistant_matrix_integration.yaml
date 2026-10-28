@@ -1,0 +1,136 @@
+# Home Assistant Package: IKEA OBEGRÄNSAD LED Matrix Clock
+# Datei ablegen unter: /config/packages/matrix_clock.yaml
+
+rest_command:
+  # Plugin umschalten (z.B. Big Clock, Transit, Cluster, Matrix Rain)
+  matrix_set_plugin:
+    url: "http://192.168.1.28/api/plugin?name={{ name }}&save={{ save | default(0) }}"
+    method: GET
+
+  # Helligkeit einstellen (0 - 255)
+  matrix_set_brightness:
+    url: "http://192.168.1.28/api/brightness?value={{ brightness }}"
+    method: GET
+
+  # Rotation / Ausrichtung (0, 1, 2, 3 bzw. deg 0, 90, 180, 270)
+  matrix_set_rotation:
+    url: "http://192.168.1.28/api/rotation?value={{ value }}"
+    method: GET
+
+  # Lauftext Nachricht senden (repeat: 1, 3, oder -1 für Dauerhaft)
+  matrix_send_message:
+    url: "http://192.168.1.28/message"
+    method: GET
+    payload: ""
+    headers:
+      Content-Type: "application/x-www-form-urlencoded"
+    # Parameter: text, repeat, delay
+    url: "http://192.168.1.28/message?text={{ text | urlencode }}&repeat={{ repeat | default(1) }}&delay={{ delay | default(40) }}"
+
+  # Ticker stoppen & zur Uhr zurückkehren
+  matrix_stop_ticker:
+    url: "http://192.168.1.28/api/ticker/stop"
+    method: GET
+
+  # ÖPNV-Abfahrtsdaten aktualisieren
+  matrix_update_transit:
+    url: "http://192.168.1.28/api/transit?line1={{ line1 | urlencode }}&min1={{ min1 }}&line2={{ line2 | default('') | urlencode }}&min2={{ min2 | default(-1) }}{% if activate is defined %}&activate=1{% endif %}"
+    method: GET
+
+  # Server-Cluster Status aktualisieren
+  matrix_update_cluster:
+    url: "http://192.168.1.28/api/cluster?node={{ node }}&load={{ load }}&online={{ online | default(1) }}&threats={{ threats | default(0) }}"
+    method: GET
+
+  # Sicherheitsvorfall / Sentinel Alert melden
+  matrix_send_alert:
+    url: "http://192.168.1.28/api/alert?title={{ title | urlencode }}&source={{ source | default('Sentinel') | urlencode }}"
+    method: GET
+
+  # 🌊 Fluss-Pegelstand aktualisieren (Pegelonline API)
+  matrix_update_river:
+    url: "http://192.168.1.28/api/river?cm={{ cm }}&trend={{ trend | default(0) }}{% if activate is defined %}&activate=1{% endif %}"
+    method: GET
+
+  # 🫁 Luftqualität AQI aktualisieren (UBA / WAQI)
+  matrix_update_air:
+    url: "http://192.168.1.28/api/air?aqi={{ aqi }}{% if activate is defined %}&activate=1{% endif %}"
+    method: GET
+
+  # 🌧️ Regenradar Minuten-Nowcast (DWD / Bright Sky)
+  matrix_update_rain:
+    url: "http://192.168.1.28/api/rain?min={{ min }}&intensity={{ intensity | default(50) }}{% if activate is defined %}&activate=1{% endif %}"
+    method: GET
+
+  # ⚡ Grünstrom-Index / Netzampel (SMARD / Electricity Maps)
+  matrix_update_energy:
+    url: "http://192.168.1.28/api/energy?percent={{ percent }}{% if activate is defined %}&activate=1{% endif %}"
+    method: GET
+
+  # 🛰️ ISS Überflug (Open Notify / NASA)
+  matrix_update_iss:
+    url: "http://192.168.1.28/api/iss?min={{ min }}&visible={{ visible | default(1) }}{% if activate is defined %}&activate=1{% endif %}"
+    method: GET
+
+# Sensoren zur Überwachung der LED-Matrix in Home Assistant
+sensor:
+  - platform: rest
+    name: "Matrix Clock Status"
+    resource: "http://192.168.1.28/api/status"
+    scan_interval: 30
+    json_attributes:
+      - brightness
+      - rotation
+      - ticker_active
+      - active_name
+      - active_id
+    value_template: "{{ value_json.active_name }}"
+
+  - platform: rest
+    name: "Matrix Clock ESP32 Sensoren"
+    resource: "http://192.168.1.28/api/sensors"
+    scan_interval: 60
+    json_attributes:
+      - temp_c
+      - hall
+      - cpu_mhz
+      - free_heap
+      - rssi
+      - uptime
+    value_template: "{{ value_json.temp_c }} °C"
+
+# Beispiel-Automationen:
+automation:
+  # 1. Nachts Helligkeit dimmen
+  - alias: "Matrix Clock: Nachtmodus dimmen"
+    trigger:
+      - platform: time
+        at: "23:00:00"
+    action:
+      - service: rest_command.matrix_set_brightness
+        data:
+          brightness: 30
+
+  # 2. Morgens normale Helligkeit
+  - alias: "Matrix Clock: Tagmodus Helligkeit"
+    trigger:
+      - platform: time
+        at: "07:30:00"
+    action:
+      - service: rest_command.matrix_set_brightness
+        data:
+          brightness: 200
+
+  # 3. Sentinel Sicherheitsvorfall sofort auf der Matrix melden
+  - alias: "Matrix Clock: Sicherheitsvorfall anzeigen"
+    trigger:
+      - platform: state
+        entity_id: sensor.sentinel_last_threat
+    condition:
+      - condition: template
+        value_template: "{{ trigger.to_state.state != 'unknown' and trigger.to_state.state != '' }}"
+    action:
+      - service: rest_command.matrix_send_alert
+        data:
+          title: "{{ trigger.to_state.state }}"
+          source: "Sentinel"
