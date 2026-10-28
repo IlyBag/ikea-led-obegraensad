@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <vector>
+#include <string>
 #include "constants.h"
 
 extern std::vector<int> letterU;

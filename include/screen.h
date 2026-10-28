@@ -44,6 +44,7 @@ public:
 
   bool isCacheEmpty();
   int currentRotation;
+  void setRotation(int rotation);
 
   uint8_t getCurrentBrightness() const;
   void setBrightness(uint8_t brightness);
@@ -67,6 +68,8 @@ public:
   void drawRectangle(int x, int y, int width, int height, bool outline, int ledStatus, uint8_t brightness = 255);
   void drawCharacter(int x, int y, std::vector<int> bits, int bitCount, uint8_t brightness = 255);
   void drawNumbers(int x, int y, std::vector<int> numbers, uint8_t brightness = 255);
+  void drawMiniNumbers(int x, int y, const std::vector<int> &numbers, uint8_t brightness = 255);
+  void drawMiniDigit(int x, int y, int digit, uint8_t brightness = 255);
   void drawBigNumbers(int x, int y, std::vector<int> numbers, uint8_t brightness = 255);
   void drawWeather(int x, int y, int weather, uint8_t brightness = 255);
   std::vector<int> readBytes(std::vector<int> bytes);

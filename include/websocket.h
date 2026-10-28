@@ -16,6 +16,7 @@ void onWsEvent(
     size_t len);
 void sendInfo();
 void sendMinimalInfo();
+void sendTelemetry();
 void initWebsocketServer(AsyncWebServer &server);
 void cleanUpClients();
 

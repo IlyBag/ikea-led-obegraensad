@@ -36,6 +36,43 @@ void sendInfo()
   ws.textAll(output);
 }
 
+void sendTelemetry()
+{
+  if (ws.count() == 0) return;
+  DynamicJsonDocument doc(1024);
+  doc["event"] = "telemetry";
+#ifdef ESP32
+  float tempC = temperatureRead();
+  float tempF = tempC * 1.8f + 32.0f;
+  doc["temp_c"] = (int)(tempC * 10.0f) / 10.0f;
+  doc["temp_f"] = (int)(tempF * 10.0f) / 10.0f;
+  doc["hall"] = hallRead();
+  doc["cpu_mhz"] = ESP.getCpuFreqMHz();
+#else
+  doc["temp_c"] = 0;
+  doc["temp_f"] = 0;
+  doc["hall"] = 0;
+  doc["cpu_mhz"] = 80;
+#endif
+  doc["free_heap"] = ESP.getFreeHeap();
+  doc["total_heap"] = ESP.getHeapSize();
+  doc["flash_size"] = ESP.getFlashChipSize();
+  doc["sketch_size"] = ESP.getSketchSize();
+  doc["free_sketch"] = ESP.getFreeSketchSpace();
+  doc["rssi"] = WiFi.RSSI();
+  doc["uptime"] = millis() / 1000;
+  doc["ip"] = WiFi.localIP().toString();
+  doc["mac"] = WiFi.macAddress();
+  doc["brightness"] = Screen.getCurrentBrightness();
+  Plugin *active = pluginManager.getActivePlugin();
+  doc["active_plugin"] = active ? active->getId() : 1;
+  doc["active_name"] = active ? active->getName() : "None";
+
+  String output;
+  serializeJson(doc, output);
+  ws.textAll(output);
+}
+
 void sendMinimalInfo()
 {
   DynamicJsonDocument jsonDocument(6144);
@@ -107,12 +144,17 @@ void onWsEvent(
           else if (!strcmp(event, "rotate"))
           {
             bool isRight = (bool)!strcmp(wsRequest["direction"], "right");
-
-            Screen.currentRotation = isRight ? (Screen.currentRotation > 3 ? 1 : Screen.currentRotation + 1) : (Screen.currentRotation <= 0 ? 3 : Screen.currentRotation - 1);
+            int newRot = (Screen.currentRotation + (isRight ? 1 : 3)) % 4;
+            Screen.setRotation(newRot);
+            sendMinimalInfo();
           }
           else if (!strcmp(event, "info"))
           {
             sendInfo();
+          }
+          else if (!strcmp(event, "telemetry"))
+          {
+            sendTelemetry();
           }
           else if (!strcmp(event, "brightness"))
           {

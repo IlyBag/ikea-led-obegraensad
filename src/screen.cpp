@@ -1,4 +1,5 @@
 #include "screen.h"
+#include "messages.h"
 #include <SPI.h>
 
 #define TIMER_INTERVAL_US 200
@@ -71,6 +72,16 @@ void Screen_::loadFromStorage()
   }
   this->setBrightness(storage.getUInt("brightness", 255));
   this->currentRotation = storage.getUInt("rotation", 0);
+  storage.end();
+#endif
+}
+
+void Screen_::setRotation(int rotation)
+{
+  this->currentRotation = (rotation % 4 + 4) % 4;
+#ifdef ENABLE_STORAGE
+  storage.begin("led-wall", false);
+  storage.putUInt("rotation", this->currentRotation);
   storage.end();
 #endif
 }
@@ -263,6 +274,44 @@ std::vector<int> Screen_::readBytes(std::vector<int> bytes)
   return bits;
 };
 
+static const uint16_t FONT3x5[10] = {
+    0b111101101101111, // 0
+    0b010110010010111, // 1
+    0b111001111100111, // 2
+    0b111001111001111, // 3
+    0b101101111001001, // 4
+    0b111100111001111, // 5
+    0b111100111101111, // 6
+    0b111001001010010, // 7
+    0b111101111101111, // 8
+    0b111101111001111  // 9
+};
+
+void Screen_::drawMiniDigit(int x, int y, int digit, uint8_t brightness)
+{
+  if (digit < 0 || digit > 9) return;
+  uint16_t glyph = FONT3x5[digit];
+  for (int r = 0; r < 5; r++)
+  {
+    for (int c = 0; c < 3; c++)
+    {
+      int bitIdx = 14 - (r * 3 + c);
+      if ((glyph >> bitIdx) & 1)
+      {
+        this->setPixel(x + c, y + r, 1, brightness);
+      }
+    }
+  }
+}
+
+void Screen_::drawMiniNumbers(int x, int y, const std::vector<int> &numbers, uint8_t brightness)
+{
+  for (size_t i = 0; i < numbers.size(); i++)
+  {
+    this->drawMiniDigit(x + (i * 4), y, numbers[i], brightness);
+  }
+}
+
 void Screen_::drawNumbers(int x, int y, std::vector<int> numbers, uint8_t brightness)
 {
   for (int i = 0; i < numbers.size(); i++)
@@ -308,6 +357,7 @@ void Screen_::scrollText(std::string text, int delayTime, uint8_t brightness, ui
 
   for (int i = -ROWS; i < textWidth; i++)
   { // start with negative screen size, so out of screen to the right
+    if (Messages.isStopRequested()) break;
 
     int skippedChars = 0;
 
@@ -348,6 +398,7 @@ void Screen_::scrollGraph(std::vector<int> graph, int miny, int maxy, int delayT
 
   for (int i = -ROWS; i < (int)graph.size(); i++)
   {
+    if (Messages.isStopRequested()) break;
     this->clear();
 
     int y1 = -999; // previous point.
