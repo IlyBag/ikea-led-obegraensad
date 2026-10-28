@@ -20,7 +20,7 @@ const StoreContext = createContext<Store>();
 const ws = createReconnectingWS(
   `${
     import.meta.env.PROD
-      ? `ws://${window.location.host}/`
+      ? `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/`
       : import.meta.env.VITE_WS_URL
   }ws`
 );
@@ -41,6 +41,7 @@ export const StoreProvider: ParentComponent = (props) => {
   const [systemStatus, setSystemStatus] = createSignal<SYSTEM_STATUS>(
     SYSTEM_STATUS.NONE
   );
+  const [telemetry, setTelemetry] = createSignal<any>(null);
 
   const state = createWSState(ws);
 
@@ -60,6 +61,9 @@ export const StoreProvider: ParentComponent = (props) => {
     const json = JSON.parse(messageEvent()?.data || '{}');
 
     switch (json.event) {
+      case 'telemetry':
+        setTelemetry(json);
+        break;
       case 'info':
         batch(() => {
           setSystemStatus(Object.values(SYSTEM_STATUS)[json.status as number]);
@@ -113,6 +117,8 @@ export const StoreProvider: ParentComponent = (props) => {
         setPlugin,
         systemStatus,
         setSystemStatus,
+        telemetry,
+        setTelemetry,
         send: ws.send,
         connectionState: state,
         connectionStatus: connectionStatus[state()],
